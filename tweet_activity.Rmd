@@ -1,0 +1,74 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r}
+library(timeDate)
+library(lubridate)
+library(ggplot2)
+options(tz="Europe/London")
+
+tweets <- read.csv("katkoler_tweets.csv")
+```
+
+```{r}
+tweets$date <- sub(" .*", "", tweets$created_at)
+tweets$time <- sub(".* ", "", tweets$created_at)
+
+tweets$created_at <- ymd_hms(tweets$created_at)
+tweets$date <- ymd(tweets$date)
+tweets$time <- hms(tweets$time)
+tweets$wday <- wday(tweets$created_at, label = TRUE)
+tweets$week <- week(tweets$created_at)
+tweets$hour <- round_date(tweets$created_at, unit = "hours")
+tweets$hour <- sub(".* ", "", tweets$hour)
+tweets$hour <- sub(":.*", "", tweets$hour )
+
+
+tweets$work_hours <- "No"
+wday(tweets$created_at[1:6], label = TRUE)
+for (i in 1:nrow(tweets)) {
+    if (!(tweets$date[i] >= ymd("2017-12-21") & tweets$date[i] <= ymd("2018-01-01"))) {
+   if (tweets$wday[i] != "Sun") {
+       if (tweets$wday[i] != "Sat") {
+       if (tweets$time[i] >= hms("09:00:00")) {
+           if (tweets$time[i] <= hms("17:00:00")) {
+               tweets$work_hours[i] <- "Yes"
+           }
+       }
+       }}
+   }
+}
+
+tweets$RT <- grepl("^b'RT|^b\"RT", tweets$text)
+```
+
+```{r}
+p <- ggplot(tweets, aes(x=wday, fill=work_hours)) + geom_histogram(stat = "count")
+p
+
+p <- ggplot(tweets, aes(x=week, fill=work_hours)) + geom_histogram(stat = "count")
+p
+
+p <- ggplot(tweets, aes(x=hour, fill=work_hours)) + geom_histogram(stat = "count")
+p
+
+p <- ggplot(tweets, aes(x=hour, fill=work_hours)) + geom_histogram(stat = "count") + facet_grid(wday ~.)
+p
+
+p <- ggplot(tweets, aes(x=hour, fill=work_hours)) + geom_histogram(stat = "count") + facet_grid(wday ~ RT)
+p
+
+days <- unique(tweets$date)
+working_days <- (wday(days) %in% c(2:6)) & (!(days >= ymd("2017-12-21") & days <= ymd("2018-01-01")))
+sum(working_days)
+
+table(tweets$work_hours[tweets$wday %in% c("Mon", "Tue", "Wed", "Thu", "Fri")])
+sum(tweets$work_hours[tweets$wday %in% c("Mon", "Tue", "Wed", "Thu", "Fri")] == "Yes")
+sum(tweets$work_hours == "Yes")/sum(working_days)
+
+table(tweets$work_hours, tweets$wday)
+```
